@@ -1,0 +1,69 @@
+<apex:page controller="testUpload" showHeader="false">
+    <apex:stylesheet value="{!URLFOR($Resource.MobileSample_Resources_jQueryMobile, 'jquery.mobile-1.3.0.min.css')}"/>
+    <apex:includeScript value="{!URLFOR($Resource.MobileSample_Resources_jQueryMobile, 'jquery-1.9.1.min.js')}"/>
+    <apex:includeScript value="{!URLFOR($Resource.MobileSample_Resources_jQueryMobile, 'jquery.mobile-1.3.0.min.js')}"/>
+    <script>
+        var $j = jQuery.noConflict(); 
+        $j(document).ready(function() {
+          $j('form').attr('data-ajax', 'false');
+        	
+        	
+        });
+    </script>
+    <style>
+        h1{
+        font-size:18px;
+        }
+        
+        h3{
+        font-size:14px;
+        }
+        
+        body{
+        font-size:14px;
+        }
+    </style>
+    
+    
+        
+        <div data-role="content" data-theme="c">
+            <h1>Expense {!exp.Name}</h1><br/>
+            <h3>{!exp.Expense_Type__c} from {!exp.Company__c} for ${!exp.Total_Amount__c}</h3>
+            
+            <apex:form >
+                <apex:pageMessages />             
+                
+                <br/>
+                <!--<apex:outputLabel value="File" for="file"/>-->
+                <apex:inputFile value="{!attachment.body}" filename="{!attachment.name}" id="file"/>
+                <br/>
+                <apex:outputLabel value="Description" for="description"/>
+                <apex:inputTextarea value="{!attachment.description}" id="description"/>
+                
+                <apex:commandButton action="{!upload}" value="Upload" styleClass="ui-btn-right"/>
+            </apex:form>
+            
+            <table data-role="table" id="my-table" data-mode="reflow" class="ui-responsive table-stroke">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>File</th>
+                        <th>Description</th>
+                        <th>Created Date</th>
+                    </tr>
+                </thead>
+                <tbody>                    
+                    <apex:repeat value="{!AttList}" var="aList">
+                        <tr>
+                            <th>{!aList.Name}</th>
+                            <td><a href="https://c.na14.content.force.com/servlet/servlet.FileDownload?file={!aList.id}" target="_blank" >View file</a></td>
+                            <td>{!aList.Description}</td>
+                            <td><apex:outputField value="{!aList.CreatedDate}"/></td>
+                        </tr>
+                    </apex:repeat>                       
+                </tbody>
+            </table>
+            
+            <!--<apex:relatedList list="NotesAndAttachments" subject="{!exp.id}"/>-->
+        </div>
+</apex:page>
