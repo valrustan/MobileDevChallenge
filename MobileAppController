@@ -1,0 +1,149 @@
+public class MobileAppController{
+    
+    public string getdateMax(){
+        string dMax;
+        date d = date.today();
+        string y = string.valueof(d.year());
+        string m = string.valueof(d.month());
+        if(m.length() == 1){m = '0' + string.valueof(d.month());}
+        
+        string dy = string.valueof(d.day());
+        if(dy.length() == 1){dy = '0' + string.valueof(d.day());}
+        
+        dMax = y + '-' + m + '-' + dy;
+        
+        return dMax;
+    }
+        
+    public MobileAppController(ApexPages.StandardController controller){
+        //attachment = new Attachment();                
+    }
+    
+    public List<String> getYRoptions() {
+        List<String> options = new List<String>();
+        
+        ownID = UserInfo.getUserId();
+        
+        integer yr = date.today().year();
+                
+        Expense__c exp = new Expense__c();
+        if([select Id, Date__c from Expense__c where ownerID =: ownID order by Date__c limit 1] != null){
+           exp = [select Id, Date__c from Expense__c where ownerID =: ownID order by Date__c ASC limit 1];
+            
+            integer y = exp.Date__c.year();
+            
+            system.debug(exp.Date__c.year());
+            
+            for(integer x = yr; x >= y; x--){
+             	options.add(string.valueof(x));   
+            }
+            
+            system.debug(options);
+        }else{
+            options.add(string.valueof(yr));
+        }
+        
+        
+        return options;
+    }
+    
+    public static List<Expense__c> expList {get; set;}
+    
+    public static id ownID {get; set;}
+        
+    @RemoteAction
+    public static List<Expense__c> getExpense() {
+        
+        integer yrVal = date.today().year();
+        
+        ownID = UserInfo.getUserId();
+        
+        expList = [select id, Attachments__c, Comment__c, Name, Date__c, Ownerid, Owner.firstName, Owner.lastName, Expense_Type__c, Company__c, Total_Amount__c from Expense__c where CALENDAR_YEAR(DATE__C) =: yrVal AND OwnerId =: ownID order by Date__c DESC];
+        
+        return expList;
+    }
+    
+    @RemoteAction
+    public static List<Expense__c> getFilteredExp(string eType) {
+        
+        integer yrVal = date.today().year();
+        
+        ownID = UserInfo.getUserId();
+        
+        if(eType == 'All'){
+        	expList = [select id, Attachments__c, Comment__c, Name, Date__c, Ownerid, Owner.firstName, Owner.lastName, Expense_Type__c, Company__c, Total_Amount__c from Expense__c where CALENDAR_YEAR(DATE__C) =: yrVal AND OwnerId =: ownID order by Date__c DESC];
+        }else{        
+        	expList = [select id, Attachments__c, Comment__c, Name, Date__c, Ownerid, Owner.firstName, Owner.lastName, Expense_Type__c, Company__c, Total_Amount__c from Expense__c where CALENDAR_YEAR(DATE__C) =: yrVal AND OwnerId =: ownID AND Expense_Type__c =: eType order by Date__c DESC];
+        }
+            
+        return expList;
+    }
+    
+    @RemoteAction
+    public static List<Expense__c> getFilteredMonth(integer sMonth, string filterYr) {
+        
+        //integer sMonth = integer.valueof(m);
+        
+        integer yrVal = date.today().year();
+        
+        integer sYear = integer.valueof(filterYr);
+        
+        ownID = UserInfo.getUserId();
+        
+        if(sMonth == 0){
+            expList = [select id, Attachments__c, Comment__c, Name, Date__c, Ownerid, Owner.firstName, Owner.lastName, Expense_Type__c, Company__c, Total_Amount__c from Expense__c where CALENDAR_YEAR(DATE__C) =: sYear AND OwnerId =: ownID order by Date__c DESC];
+        }else{        
+            expList = [select id, Attachments__c, Comment__c, Name, Date__c, Ownerid, Owner.firstName, Owner.lastName, Expense_Type__c, Company__c, Total_Amount__c from Expense__c where CALENDAR_YEAR(DATE__C) =: sYear AND OwnerId =: ownID AND CALENDAR_MONTH(Date__c) =: sMonth order by Date__c DESC];
+        }
+            
+        system.debug(expList);
+        
+        return expList;
+    }
+    
+    @RemoteAction
+    public static pageReference saveExp(id oID, string eDate, string eType, string eCompany, double eAmt, string comment){
+        
+        if(oID != null){
+        
+            Expense__c selExp = [select id, Attachments__c, Comment__c, Name, Date__c, Ownerid, Owner.firstName, Owner.lastName, Expense_Type__c, Company__c, Total_Amount__c from Expense__c where id =: oID]; 
+            
+            selExp.Date__c = date.valueOf(eDate);
+            selExp.Expense_Type__c = eType;
+            selExp.Company__c = eCompany;
+            selExp.Total_Amount__c = eAmt;
+            selExp.Comment__c = comment;
+            
+            system.debug(selExp);
+            
+            update selExp;
+            
+        }else{
+            
+            Expense__c newExp = new Expense__c();
+            
+            newExp.Date__c = date.valueOf(eDate);
+            newExp.Expense_Type__c = eType;
+            newExp.Company__c = eCompany;
+            newExp.Total_Amount__c = eAmt;
+            
+            insert newExp;
+            
+        }
+        
+        return null;
+        
+    }
+    
+    @RemoteAction
+    public static pageReference deleteExp(id oID){
+        
+        Expense__c selExp = [select id from Expense__c where id =: oID]; 
+        
+        delete selExp;
+        
+        return null;
+        
+    }
+    
+}
