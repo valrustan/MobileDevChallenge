@@ -1,0 +1,615 @@
+<apex:page docType="html-5.0" showHeader="false" sidebar="false" standardController="Expense__c" extensions="MobileAppController">      
+    
+    <apex:stylesheet value="{!URLFOR($Resource.MobileSample_Resources_jQueryMobile, 'jquery.mobile-1.3.0.min.css')}"/>
+    <apex:stylesheet value="{!URLFOR($Resource.mobileAppThemev3, 'themes/mobileAppThemev3.min.css')}"/>    
+    <apex:includeScript value="{!URLFOR($Resource.MobileSample_Resources_jQueryMobile, 'jquery-1.9.1.min.js')}"/>
+    <apex:includeScript value="{!URLFOR($Resource.MobileSample_Resources_jQueryMobile, 'jquery.mobile-1.3.0.min.js')}"/>    
+    
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    
+    <head>
+        <title>Expenses</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <script>
+            var $j = jQuery.noConflict(); 
+            var expRecs = new Array();
+                        
+            $j(document).ready(function() {
+              regBtnClickHandlers();
+            	$j.mobile.loadPage( '#listpage', { showLoadMsg: false } );
+            	$j.mobile.loadPage( '#expenseType', { showLoadMsg: false } );
+            	$j.mobile.loadPage( '#Month', { showLoadMsg: false } );
+                getAllexps();
+            	getExpTypeFilter();
+            	getMonthFilter();      
+            
+            	$j("#iframeLink").click(function () {
+                    $j('#iframeSpace').html('<apex:iframe src="" scrolling="true" id="theIframe" height="100%"/>');
+                    $j("#theIframe").attr("src", "/apex/testUploadVF?id=" + $j('#expID').val());
+                    var h = $j(window).height() -47;
+                    
+                    $j('#theIframe').attr('height', h +'px');
+                });
+            
+            $j("#exptypeFilter").change(function(){
+            	getExpTypeFilter();
+            });
+            
+            
+    
+            $j("#monthFilter, #yearFilter").change(function(){
+            	getMonthFilter();
+            });
+            
+            /*$j('a[href="#listpage"], a[href="#expenseType"], a[href="#Month"]').click(function() {
+            		console.log('refreshing lists');
+                    getAllexps();
+                    getExpTypeFilter();
+                    getMonthFilter();
+            <apex:outputText value="$j('#date').attr('max', '{!dateMax}');"/>
+            });*/
+            
+            	$j('#refreshReport').click(function() {
+            		location.reload();
+                });
+            
+            	$j('form').attr('data-ajax', 'false');
+            
+            	var h = $j(window).height() -47;
+            
+            	$j('#theIframe').attr('height', h +'px');
+            	            
+            //<apex:outputText value="$j('#date').attr('max', '{!dateMax}');"/>
+            });
+            
+            function getAllexps(){
+                $j.mobile.showPageLoadingMsg();
+                        
+            	// This remoting call will use the page's timeout value
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.MobileAppController.getExpense}', 
+                    function(result, event) {
+            			showexps(result);            			
+            		}
+                );
+            
+            }
+            
+            function getExpTypeFilter(){            
+                $j.mobile.showPageLoadingMsg();
+
+                var filter = $j('#exptypeFilter').val();
+                            
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.MobileAppController.getFilteredExp}', filter, 
+                    function(result, event) {
+            			showexpFilterList(result);            			
+            		}, {buffer: false}
+                );
+            }
+            
+            function getMonthFilter(){            
+                $j.mobile.showPageLoadingMsg();
+
+                var filter = $j('#monthFilter').val();
+            
+            	var filterYr = $j('#yearFilter').val();
+            
+            	console.log(filter);
+                            
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.MobileAppController.getFilteredMonth}', filter, filterYr, 
+                    function(result, event) {
+            			showMonthFilterList(result);  
+            			
+            		}
+                );
+            }
+            
+            function showMonthFilterList(records) {    
+                    $j('#mList').empty();
+                    expRecs.length = 0;
+                    
+                    
+                    for(var i = 0; i < records.length; i++) { expRecs[records[i].Id] = records[i]; }
+                    var x = 0;
+                    $j.each(records,
+                        function() {
+                        var newLi = $j('<li class="dLink"></li>');
+                                    
+					var d = new Date(this.Date__c).toISOString().substring(0, 10);
+            
+            
+            		var cb = 0;
+                    
+                    if(this.Attachments__c == undefined){
+                    	cb = 0;
+                    }else{
+                    	cb = this.Attachments__c;
+                    }
+                                
+            		var newLink = $j('<a id="' +this.Id+ '" data-transition="flip"><h3>'+ d +'</h3><p><span style="color:blue">'+this.Expense_Type__c+ '</span> - '+this.Company__c+ ' for $'+this.Total_Amount__c+ '</p></a><span class="ui-li-count">'+cb+'</span>');
+                        newLink.click(function(e) {
+                            e.preventDefault();
+                            $j.mobile.showPageLoadingMsg();
+                            $j('#date').val(d);
+                            $j('#exptype').val(expRecs[this.id].Expense_Type__c);
+                            $j('#company').val(expRecs[this.id].Company__c);
+                            $j('#amt').val(expRecs[this.id].Total_Amount__c);
+                            $j('#expID').val(expRecs[this.id].Id);
+							$j('#comment').val(expRecs[this.id].Comment__c);
+                            $j('#error').html('');              
+
+							$j("#uploadLink").attr("href", "/apex/testUploadVF?id=" + expRecs[this.id].Id);
+                            
+                            $j.mobile.changePage('#detailpage', {changeHash: true});
+                            
+                        });
+                        newLi.append(newLink);            
+                        newLi.appendTo('#mList');
+                        x++;
+                      });
+    
+                    $j("li.dLink a").click(function() {
+                        var eType = expRecs[this.id].Expense_Type__c;
+                        console.log(eType);
+    
+                        var output = '<option id="current" selected="selected" value="' + eType + '">' + eType + '</option>';
+                        $j('#current').replaceWith(output);
+    
+                        $j( "#exptype" ).selectmenu( "refresh" );
+                    });
+                    
+                    $j.mobile.hidePageLoadingMsg();
+
+					if(records.length > 0){
+                    		$j('#mList').listview('refresh');    
+					}
+
+			}
+            
+            function showexpFilterList(records) {    
+                    $j('#fList').empty();
+                    expRecs.length = 0;
+                    
+                    
+                    for(var i = 0; i < records.length; i++) { expRecs[records[i].Id] = records[i]; }
+                    var x = 0;
+                    $j.each(records,
+                        function() {
+                        var newLi = $j('<li class="dLink"></li>');
+                                    
+					var d = new Date(this.Date__c).toISOString().substring(0, 10);
+
+					var cb = 0;
+                    
+                    if(this.Attachments__c == undefined){
+                    	cb = 0;
+                    }else{
+                    	cb = this.Attachments__c;
+                    }
+                                
+                	var newLink = $j('<a id="' +this.Id+ '" data-transition="flip"><h3>'+ d +'</h3><p><span style="color:blue">'+this.Expense_Type__c+ '</span> - '+this.Company__c+ ' for $'+this.Total_Amount__c+ '</p></a><span class="ui-li-count">'+cb+'</span>');
+                        newLink.click(function(e) {
+                            e.preventDefault();
+                            $j.mobile.showPageLoadingMsg();
+                            $j('#date').val(d);
+                            $j('#exptype').val(expRecs[this.id].Expense_Type__c);
+                            $j('#company').val(expRecs[this.id].Company__c);
+                            $j('#amt').val(expRecs[this.id].Total_Amount__c);
+                            $j('#expID').val(expRecs[this.id].Id);
+							$j('#comment').val(expRecs[this.id].Comment__c);
+                            $j('#error').html('');              
+                            
+							$j("#uploadLink").attr("href", "/apex/testUploadVF?id=" + expRecs[this.id].Id);
+
+                            $j.mobile.changePage('#detailpage', {changeHash: true});
+                            
+                        });
+                        newLi.append(newLink);            
+                        newLi.appendTo('#fList');
+                        x++;
+                      });
+    
+                    $j("li.dLink a").click(function() {
+                        var eType = expRecs[this.id].Expense_Type__c;
+                        console.log(eType);
+    
+                        var output = '<option id="current" selected="selected" value="' + eType + '">' + eType + '</option>';
+                        $j('#current').replaceWith(output);
+    
+                        $j( "#exptype" ).selectmenu( "refresh" );
+                    });
+    
+                    
+                    
+                    $j.mobile.hidePageLoadingMsg();
+
+					if(records.length > 0){
+                    	$j('#fList').listview('refresh');    
+					}
+
+			}
+
+            
+            function showexps(records) {    
+                $j('#cList').empty();
+                expRecs.length = 0;
+                
+
+                for(var i = 0; i < records.length; i++) { expRecs[records[i].Id] = records[i]; }
+                var x = 0;
+                        	
+                $j.each(records,
+                    function() {
+                    var newLi = $j('<li class="dLink"></li>');
+
+					var d = new Date(this.Date__c).toISOString().substring(0, 10);
+
+                    console.log(this.Attachments__c);
+                    
+                    var cb = 0;
+                    
+                    if(this.Attachments__c == undefined){
+                    	cb = 0;
+                    }else{
+                    	cb = this.Attachments__c;
+                    }
+
+                                
+                	var newLink = $j('<a id="' +this.Id+ '" data-transition="flip"><h3>'+ d +'</h3><p><span style="color:blue">'+this.Expense_Type__c+ '</span> - '+this.Company__c+ ' for $'+this.Total_Amount__c+ '</p></a><span class="ui-li-count">'+cb+'</span>');
+                    newLink.click(function(e) {
+                        e.preventDefault();
+                        $j.mobile.showPageLoadingMsg();
+                        $j('#date').val(d);						
+                        $j('#exptype').val(expRecs[this.id].Expense_Type__c);
+                        $j('#company').val(expRecs[this.id].Company__c);
+                        $j('#amt').val(expRecs[this.id].Total_Amount__c);
+						$j('#comment').val(expRecs[this.id].Comment__c);
+                        $j('#expID').val(expRecs[this.id].Id);
+                        $j('#error').html('');              
+
+						$j('#iframeLink').css("display", "block")
+                        
+						
+
+						$j("#uploadLink").attr("href", "/apex/testUploadVF?id=" + expRecs[this.id].Id);
+						
+                        $j.mobile.changePage('#detailpage', {changeHash: true});
+                        
+                    });
+                    newLi.append(newLink);     
+					if(records.length > 0){
+                    	newLi.appendTo('#cList');
+					}
+                    x++;
+                  });
+
+                $j("li.dLink a").click(function() {
+                    var eType = expRecs[this.id].Expense_Type__c;
+                    console.log(eType);
+
+                    var output = '<option id="current" selected="selected" value="' + eType + '">' + eType + '</option>';
+                    $j('#current').replaceWith(output);
+
+                    $j( "#exptype" ).selectmenu( "refresh" );
+                });
+                
+                $j.mobile.hidePageLoadingMsg();
+				if(records.length > 0){
+                	$j('#cList').listview('refresh');
+				}
+            }      
+
+            function addUpdateexp(e){
+                e.preventDefault();
+				var cId = $j('#expID').val();
+                var exp = { Date__c : $j('#date').val(),
+                                Expense_Type__c : $j('#exptype').val(),
+                                Company__c : $j('#company').val(),
+                                Total_Amount__c : $j('#amt').val(),
+								Comment__c : $j('#comment').val()};
+                if (cId === 'undefined' || cId === ''){
+                    Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.MobileAppController.saveExp}', null, $j('#date').val(), $j('#exptype').val(), $j('#company').val(), $j('#amt').val(), $j('#comment').val(), sucessCallback);
+                } else {
+					console.log($j('#expID').val());
+                    Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.MobileAppController.saveExp}', $j('#expID').val(), $j('#date').val(), $j('#exptype').val(), $j('#company').val(), $j('#amt').val(), $j('#comment').val(), sucessCallback);
+                }
+            }
+
+            function deleteexp(e){
+                e.preventDefault();
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.MobileAppController.deleteExp}', $j('#expID').val(), sucessCallback);
+            }
+            
+            function sucessCallback(r){
+                getAllexps();
+				getExpTypeFilter();
+				getMonthFilter();
+                $j.mobile.changePage('#listpage', {changeHash: true});
+            }
+        
+            function displayError(e){
+                var error = JSON.parse(e.responseText);
+                $j('#error').html(error[0].message);
+            }
+        
+            function regBtnClickHandlers() {
+                $j('#add').click(function(e) {
+                    e.preventDefault();
+                    $j.mobile.showPageLoadingMsg();
+                    $j('#date').val('');
+                    $j('#company').val('');
+                    $j('#amt').val('');
+                    $j('#error').html('');
+                    $j('#expID').val('');
+					$j('#comment').val('');
+
+					$j('#iframeLink').css("display", "none")
+
+					var output = '<option id="current" selected="selected" value=""></option>';
+                    $j('#current').replaceWith(output);
+
+                    $j( "#exptype" ).selectmenu( "refresh" );
+
+                    $j.mobile.changePage('#detailpage', {changeHash: true});
+                    $j.mobile.hidePageLoadingMsg();            
+                });
+        
+                $j('#save').click(function(e) {
+                   addUpdateexp(e);
+                });
+        
+                $j('#delete').click(function(e) {
+                   deleteexp(e);
+                });
+			}
+
+
+
+        </script>    
+
+    </head>
+
+	<style>
+		.expTable, .expTable th, .expTable td{
+			font-size:14px;
+			margin:auto;
+			border: 1px solid black;
+		}
+
+		.col2{
+			text-align:right;
+		}
+
+		#chart_div{
+		margin:auto;
+		}
+
+		.ui-icon-calendar {
+			background-image: url("{!URLFOR($Resource.icons, 'cc/white/png/calendar_1_icon&16.png')}");
+        }
+
+        .ui-listview-filter-inset{
+        	margin: 5px 0;
+        }
+
+        .ui-bar-b {
+        border: white;
+        background: white;
+        color: #3e3e3e;
+        font-weight: bold;
+        text-shadow: 0 1px 0 #ffffff;
+        background-image: ;
+        }
+
+		etList{
+		color:blue;
+		}
+	</style>
+
+    <body>    
+        <div data-role="page" data-theme="a" id="listpage">                
+            <div data-role="header" data-position="fixed" data-theme="a" data-id="fheader">
+                <h2>{!$User.firstName} {!$User.lastName}</h2>
+                <a href='#' id="add" class='ui-btn-right' data-icon='add' data-theme="a" data-iconpos="notext">Add</a>
+            </div>
+            <div data-role="content" id="expList">   
+                <ul id="cList" data-filter="true" data-inset="true" data-role="listview" 
+                    data-theme="b" data-dividertheme="b" data-filter-theme="b">
+                </ul>
+            </div>
+            <div data-role="footer" style="overflow:hidden;" data-position="fixed" data-theme="a" data-id="ffooter">
+                <div data-role="navbar">
+                    <ul>
+                        <li><a href="#expenseType"><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/wallet_icon&24.png')}" width="24" height="24"/></a></li>
+                        <li><a href="#Month" ><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/calendar_2_icon&24.png')}" width="24" height="24"/></a></li>
+                        <li><a href="#Reports"><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/chart_bar_icon&24.png')}" width="24" height="24"/></a></li>
+                    </ul>
+                </div><!-- /navbar -->
+            </div><!-- /footer -->
+        </div>
+        
+        <div data-role="page" data-theme="a" id="detailpage">
+            <div data-role="header" data-position="fixed" data-theme="a" data-id="fheader">
+                <a href='#listpage' data-rel="back" id="back2expList" class='ui-btn-left' data-iconpos="notext" data-icon='arrow-l' data-direction="reverse" data-transition="flip">Back</a>
+                <h1>Expense Details</h1>
+				<a id="iframeLink" href='#attachmentPage' data-role='button'><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/clip_icon&16.png')}" width="16" height="16"/></a>
+            </div>
+            <div data-role="content">
+                <div data-role="fieldcontain">
+                    <label for="date">Date:</label>
+                    <input name="date" id="date" type="date" data-clear-btn="true" />
+                </div>
+                <!--<div data-role="fieldcontain">
+                    <label for="exptype">Expense Type:</label>
+                    <input name="exptype" id="exptype"/>
+                </div>-->
+                <div data-role="fieldcontain" id="selExp">
+                    <label for="exptype" class="select">Expense Type:</label>
+                    <select name="exptype" id="exptype">
+                        <option id="current" value=""></option>
+                        <option value="Hotel">Hotel</option>
+                        <option value="Restaurant">Restaurant</option>
+                        <option value="Office Supply">Office Supply</option>
+                        <option value="Airfare">Airfare</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Miscellaneous">Miscellaneous</option>
+                    </select>
+                </div>
+                <div data-role="fieldcontain">
+                    <label for="company">Company:</label>
+                    <input name="company" id="company" />
+                </div>
+                <div data-role="fieldcontain">
+                    <label for="amt">Total Amount:</label>
+                    <input name="amt" id="amt" type="number"/>
+                </div>
+				<div data-role="fieldcontain">
+                    <label for="comment">Comment:</label>
+                    <textarea name="comment" id="comment"></textarea>
+                </div>
+                <h2 style="color:red" id="error"></h2><br/>
+                <input type="hidden" id="expID" />
+                <button id="save" data-role="button" data-icon="check" data-inline="true" data-theme="a" class="save">Save</button>
+                <button id="delete" data-role="button" data-icon="delete" data-inline="true" data-theme="a" class="destroy">Delete</button>
+
+				<!--<a id="iframeLink" href='#attachmentPage' data-role='button'>Attachments</a>-->
+
+			</div>
+        </div>  
+
+
+        <div data-role="page" data-theme="a" id="expenseType">                
+            <div data-role="header" data-position="fixed" data-theme="a" data-id="fheader">
+                <a href='#listpage' id="back2expList" class='ui-btn-left' data-icon='home' data-iconpos="notext" data-transition="flip">Home</a>
+                <!--<a href="#expTypeFilter" data-rel="dialog" data-icon='info' data-iconpos="notext" data-transition="flip">Open dialog</a>-->
+                <h1>Expense Type</h1>
+            </div>
+            <div data-role="content">            
+                 <div data-role="fieldcontain" >
+                    <label for="exptypeFilter" class="select">Expense Type:</label>
+                    <select name="exptypeFilter" id="exptypeFilter">
+                        <option value="All">All</option>
+                        <option value="Hotel">Hotel</option>
+                        <option value="Restaurant">Restaurant</option>
+                        <option value="Office Supply">Office Supply</option>
+                        <option value="Airfare">Airfare</option>
+                        <option value="Transportation">Transportation</option>
+                        <option value="Miscellaneous">Miscellaneous</option>
+                    </select>
+				</div>
+                    <ul id="fList" data-filter="true" data-inset="true" data-role="listview" 
+                        data-theme="b" data-dividertheme="b" data-filter-theme="b">
+                    </ul>
+                
+            </div>
+            <div data-role="footer" style="overflow:hidden;" data-position="fixed" data-theme="a" data-id="ffooter">
+                <div data-role="navbar">
+                    <ul>
+                        <li><a href="#expenseType"><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/wallet_icon&24.png')}" width="24" height="24"/></a></li>
+                        <li><a href="#Month" ><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/calendar_2_icon&24.png')}" width="24" height="24"/></a></li>
+                        <li><a href="#Reports"><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/chart_bar_icon&24.png')}" width="24" height="24"/></a></li>
+                    </ul>
+                </div><!-- /navbar -->
+            </div><!-- /footer -->
+        </div>
+
+    <!--<div data-role="page" data-theme="a" id="expTypeFilter"> 
+        <div data-role="header" data-theme="a" data-id="fheader">
+            <h1>Information</h1>
+        </div>
+        <div data-role="content">  
+            <p>Fill out later</p>
+        </div>
+    </div>-->
+
+    <div data-role="page" data-theme="a" id="Month">                
+            <div data-role="header" data-position="fixed" data-theme="a" data-id="fheader">
+                <a href='#listpage' id="back2expList" class='ui-btn-left' data-icon='home' data-iconpos="notext" data-transition="flip">Home</a>
+                <!--<a href="#expTypeFilter" data-rel="dialog" data-icon='info' data-iconpos="notext" data-transition="flip">Open dialog</a>-->
+                <h1>Month</h1>
+            </div>
+            <div data-role="content" data-theme="a">
+				<div data-role="fieldcontain" >
+                    <label for="yearFilter" class="select">Year:</label>
+                    <select name="yearFilter" id="yearFilter">                        
+                        <apex:repeat value="{!YRoptions}" var="x" id="YRoptions">
+                        	<option value="{!x}">{!x}</option>
+                        </apex:repeat>
+                    </select>
+				</div>
+                <div data-role="fieldcontain" >
+                    <label for="monthFilter" class="select">Month:</label>
+                    <select name="monthFilter" id="monthFilter">
+                        <option value="0">All</option>
+                        <option value="1">January</option>
+                        <option value="2">February</option>
+                        <option value="3">March</option>
+                        <option value="4">April</option>
+                        <option value="5">May</option>
+                        <option value="6">June</option>
+						<option value="7">July</option>
+                        <option value="8">August</option>
+                        <option value="9">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+				</div>
+				<ul id="mList" data-filter="true" data-inset="true" data-role="listview" 
+                        data-theme="b" data-dividertheme="b" data-filter-theme="b">
+                </ul>
+            </div>
+            <div data-role="footer" style="overflow:hidden;" data-position="fixed" data-theme="a" data-id="ffooter">
+                <div data-role="navbar">
+                    <ul>
+						<li><a href="#expenseType"><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/wallet_icon&24.png')}" width="24" height="24"/></a></li>
+                        <li><a href="#Month" ><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/calendar_2_icon&24.png')}" width="24" height="24"/></a></li>
+                        <li><a href="#Reports"><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/chart_bar_icon&24.png')}" width="24" height="24"/></a></li>
+                    </ul>
+                </div><!-- /navbar -->
+            </div><!-- /footer -->
+        </div>
+
+        <div data-role="page" data-theme="a" id="Reports">                
+            <div data-role="header" data-position="fixed" data-theme="a" data-id="fheader">
+                <a href='#listpage' id="back2expList" class='ui-btn-left' data-icon='home' data-iconpos="notext" data-transition="flip">Home</a>
+                <!--<a href="" id="refreshReport" data-rel="dialog" data-icon='refresh' data-transition="flip" data-iconpos="notext">Update</a>-->
+                <h1>Reports</h1>
+            </div>
+            <div data-role="content">
+
+				<apex:include pageName="expReport"/>
+					
+            </div>
+            <div data-role="footer" style="overflow:hidden;" data-position="fixed" data-theme="a" data-id="ffooter">
+                <div data-role="navbar">
+                    <ul>
+                        <li><a href="#expenseType"><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/wallet_icon&24.png')}" width="24" height="24"/></a></li>
+                        <li><a href="#Month" ><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/calendar_2_icon&24.png')}" width="24" height="24"/></a></li>
+                        <li><a href="#Reports"><apex:image url="{!URLFOR($Resource.icons, 'cc/white/png/chart_bar_icon&24.png')}" width="24" height="24"/></a></li>
+                    </ul>
+                </div><!-- /navbar -->
+            </div><!-- /footer -->
+        </div>
+
+		<div data-role="page" data-theme="a" id="attachmentPage">
+        <div data-role="header" data-position="fixed" data-theme="a" data-id="fheader">
+            <a href='#listpage' data-rel="back" class='ui-btn-left' data-icon='arrow-l' data-iconpos="notext" data-direction="reverse" data-transition="flip">Back</a>
+            <h1>Attachments</h1>
+        </div>
+
+	<div data-role="content" data-theme="a">
+
+	<div id="iframeSpace"></div>
+
+	</div>
+
+    </div>
+
+    </body>    
+</apex:page>
