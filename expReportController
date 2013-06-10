@@ -1,0 +1,119 @@
+public class expReportController{
+    
+    ID ownID;
+    
+    public String selYear {get; set;}
+    
+    public expReportController(){
+       selYear = string.valueof(date.today().year());
+    }
+    
+    public List<SelectOption> getYRoptions() {
+        List<SelectOption> options = new List<SelectOption>();
+        
+        integer yr = date.today().year();
+                
+        Expense__c exp = new Expense__c();
+        if([select Id, Date__c from Expense__c where ownerID =: ownID order by Date__c limit 1] != null){
+         	exp = [select Id, Date__c from Expense__c where ownerID =: ownID order by Date__c ASC limit 1];
+            
+            integer y = exp.Date__c.year();
+            
+            system.debug(exp.Date__c.year());
+            
+            for(integer x = yr; x >= y; x--){
+             	options.add(new SelectOption(string.valueof(x), string.valueof(x)));   
+            }
+            
+            system.debug(options);
+        }else{
+            options.add(new SelectOption(string.valueof(yr), string.valueof(yr)));
+        }
+        
+        
+        return options;
+    }
+    
+    public List<tableWrapper> getTableVal() {
+        ownID = UserInfo.getUserId();
+        
+        List<tableWrapper> data = new List<tableWrapper>();
+        
+        //double totalVal = 0;
+        
+        for (AggregateResult ar : [select Expense_Type__c eType, SUM(Total_Amount__c) sAmt from Expense__c WHERE CALENDAR_YEAR(Date__c) =: integer.valueof(selYear) AND OwnerId =: ownID group by Expense_Type__c])  {
+            data.add(new tableWrapper(string.valueof(ar.get('eType')), double.valueof(ar.get('sAmt'))));
+            //totalVal += double.valueof(ar.get('sAmt'));
+        }
+        
+        //data.add(new tableWrapper('Total', totalVal));
+        
+        return data;
+    }
+    
+    public List<tableWrapper> getMTableVal() {
+        ownID = UserInfo.getUserId();
+        
+        Map<string, string> monthMap = new Map<string,string>();
+        monthMap.put('1', 'January');
+        monthMap.put('2', 'February');
+        monthMap.put('3', 'March');
+        monthMap.put('4', 'April');
+        monthMap.put('5', 'May');
+        monthMap.put('6', 'June');
+        monthMap.put('7', 'July');
+        monthMap.put('8', 'August');
+        monthMap.put('9', 'September');
+        monthMap.put('10', 'October');
+        monthMap.put('11', 'November');
+        monthMap.put('12', 'December');
+        
+        
+        List<tableWrapper> data = new List<tableWrapper>();
+                
+        for (AggregateResult ar : [select CALENDAR_MONTH(Date__c) d, SUM(Total_Amount__c) sAmt from Expense__c WHERE CALENDAR_YEAR(Date__c) =: integer.valueof(selYear) AND OwnerId =: ownID group by CALENDAR_MONTH(Date__c) ORDER BY CALENDAR_MONTH(Date__c)])  {
+            data.add(new tableWrapper(monthMap.get(string.valueof(ar.get('d'))), double.valueof(ar.get('sAmt'))));
+        }
+                        
+        return data;
+    }
+    
+    public List<tableWrapper> getCTableVal() {
+        ownID = UserInfo.getUserId();
+        
+        List<tableWrapper> data = new List<tableWrapper>();
+        
+        //double totalVal = 0;
+        
+        for (AggregateResult ar : [select Company__c c, SUM(Total_Amount__c) sAmt from Expense__c WHERE CALENDAR_YEAR(Date__c) =: integer.valueof(selYear) AND OwnerId =: ownID group by Company__c order by Company__c])  {
+            data.add(new tableWrapper(string.valueof(ar.get('c')), double.valueof(ar.get('sAmt'))));
+            //totalVal += double.valueof(ar.get('sAmt'));
+        }
+        
+        //data.add(new tableWrapper('Total', totalVal));
+        
+        return data;
+    }
+    
+    public class tableWrapper {
+        public string title {get; set;}
+        public double val {get; set;}
+ 
+        //This is the contructor method. When we create a new cContact object we pass a Contact that is set to the con property. We also set the selected value to false
+        public tableWrapper(string c, double v) {
+            title = c;
+            val = v;
+        }
+    }
+    
+    public PageReference filterYear() {
+     
+        getTableVal();
+        getMTableVal();
+        getCTableVal();
+        
+        return null;
+        
+    }
+
+}
